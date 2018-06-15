@@ -1,0 +1,1319 @@
+Index:
+
+<?php
+
+	$rutas = array();
+
+	if(isset($_GET['accion'])) {
+		$rutas = explode('/', $_GET['accion']);
+
+		if($rutas[0] == 'login') {
+			login();
+		}else if($rutas[0] == 'panel' || $rutas[0] == 'cerrar') {
+			panel();
+		}else {
+			header('Location: login');
+		}
+	}else {
+		login();
+	}
+
+	function login() {
+		require 'controller/login/login_controller.php';
+		$controller = new login_controller();
+		$controller->validarCampos();
+	}
+
+	function panel() {
+		require 'controller/panel/panel_controller.php';
+		$controller = new panel_controller();
+		$controller->vista();
+	}
+?>
+
+Modelos:
+
+Conexion:
+
+<?php
+
+	class Connection {
+
+		function __construct() {
+
+		}
+
+		public static function connection($host, $dbname, $user, $pass) {
+			try {
+				$connection = new PDO('mysql:host='.$host.';dbname='.$dbname, $user, $pass);
+				return $connection;
+			}catch(PDOException $e) {
+				echo 'Error: '.$e->getMessage();
+				return false;
+			}
+		}
+	}
+?>
+
+Login:
+
+<?php
+
+	require_once 'conexion/conexion_model.php';
+
+	class login_model {
+
+		private $connect;
+
+		public function __construct() {
+			session_start();
+			$this->connect = Connection::connection('localhost', 'inventario', 'root', '');
+		}
+
+		//valida que exista una sesion iniciada
+		public function validarSesion() {
+			if(isset($_SESSION['usuario']) ) {
+				return true;
+			}
+		}
+
+		public function consultar($user, $pass) {
+			$statement = $this->connect->prepare('SELECT * FROM usuarios WHERE usuario = :user AND contrasena = :pass');
+			$statement->execute([':user' => $user, ':pass' => $pass]);
+			$result = $statement->fetch();
+
+			if($result) {
+				$_SESSION['usuario'] = $user;
+				return $result;
+			}else {
+				return $result;
+			}
+		}
+	}
+?>
+
+Panel:
+
+<?php
+    class panel_model {
+
+        private $connect;
+
+        public function __construct() {
+            session_start();
+        }
+
+        //valida que exista una sesion iniciada
+        public function validarSesion() {
+            if(!isset($_SESSION['usuario'])) {
+                return true;
+            }
+        }
+    }
+?>
+
+Usuario:
+
+<?php 
+	
+	require_once "../../model/login/conexion/conexion_model.php";
+
+	class user_model {
+
+		private $connect;
+
+		public function __construct() {
+			$this->connect = Connection::connection('localhost', 'inventario', 'root', '');
+		}
+
+		public function getData() {
+			$statement = $this->connect->prepare("SELECT nombre, apellidos, correo, usuario, contrasena, fecha_registro, estado, perfil 
+                                                            FROM ((usuarios LEFT JOIN perfiles ON usuarios.perfiles_id_perfiles = perfiles.id_perfiles) 
+                                                            LEFT JOIN perfiles_modulos ON perfiles.id_perfiles = perfiles_modulos.perfiles_id_perfiles) 
+                                                            LEFT JOIN modulos ON perfiles_modulos.perfiles_id_perfiles = modulos.id_modulos");
+            $statement->execute();
+
+            return $statement;
+		}
+	}
+?>
+
+Vista:
+
+Login:
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+	<link rel="stylesheet" href="./public/css/font-awesome/css/font-awesome.min.css">
+	<script src=”./public/js/prefixfree.min.js”></script>
+	<link rel="stylesheet" href="./public/css/login.css">
+	<title>Iniciar sesión</title>
+</head>
+<body>
+	<div class="contenedor-body">
+		<!--Modulo del header-->
+		<?php require './view/modules/header_login.php'; ?>
+
+		<!--Modulo del formulario login-->
+		<?php require './view/modules/login.php';?>
+
+		<!--Modulo del footer-->
+		<?php require './view/modules/footer.php';?>
+	</div>
+
+	<script src="./public/js/validarLogin.js"></script>
+</body>
+</html>
+
+Panel:
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+	<link rel="stylesheet" href="./public/css/font-awesome/css/font-awesome.min.css">
+	<link rel="stylesheet" href="./public/css/panel.css">
+
+	<title>Dashboard</title>
+</head>
+<body>
+	<div class="contenedor-body">
+		<!--Header del panel principal-->
+		<?php require './view/modules/header_panel.php'; ?>
+
+		<div class="contenedor-menu-principal">
+			<!--Menu del panel principal-->
+			<?php require './view/modules/menu_panel.php'; ?>
+
+			<!--Contenedor central-->
+			<div class="contenedor-contenido" id="contenido"></div>
+		</div>
+
+		<!--Modulo del footer-->
+		<?php require './view/modules/footer.php';?>
+	</div>
+	<script src="./public/jquery/jquery-3.2.1.min.js"></script>
+	<script src="./public/js/menu.js"></script>
+</body>
+</html>
+
+Modulos:
+
+Anadir usuario:
+
+<link rel="stylesheet" type="text/css" href="./public/css/user.css">
+
+<div class="content-form">
+    <form action="#" method="post">
+        <input type="text" class="input-50" name="name" placeholder="Nombre">
+        <input type="text" class="input-50" name="lastname" placeholder="Apellidos">
+        <input type="email" class="input-100" name="email" placeholder="Correo electrónico">
+        <input type="text" class="input-50" name="username" placeholder="Usuario">
+        <input type="text" class="input-50" name="password" placeholder="Contraseña">
+
+        <select class="input-100" name="rol" id="rol">
+            <option value="#" selected>Seleccione un rol</option>
+            <option value="Administrador">Administrador</option>
+            <option value="Soporte">Soporte</option>
+            <option value="Usuario">Usuario</option>
+        </select>
+
+        <input type="submit" class="input-100" name="save" value="Guardar">
+    </form>
+</div>
+
+Footer:
+
+<div class="contenedor-footer">
+    <footer>
+        <nav>
+            <label>Copyright © Todos los Derechos Reservados 2018</label>
+        </nav>
+    </footer>
+</div>
+
+Header login:
+
+<div class="contenedor-header">
+    <header>
+        <nav class="nav-bar">
+            <div class="titulo-app">
+                <i class="fa fa-cogs"></i>
+                <label>Inventario App</label>
+            </div>
+        </nav>
+    </header>
+</div>
+
+Header panel:
+
+<div class="contenedor-header">
+    <header>
+        <nav class="nav-bar">
+            <div class="titulo-app">
+                <i class="fa fa-cogs"></i>
+                <label>Inventario App</label>
+            </div>
+
+            <div class="logout">
+                <div class="logout-desktop">
+                    <i class="fa fa-power-off"></i>
+                    <a href="http://localhost/sistema/cerrar">Cerrar Sesión</a>
+                </div>
+
+                <div class="logout-movil">
+                    <a href="http://localhost/sistema/cerrar"><i class="fa fa-power-off"></i></a>
+                </div>
+            </div>
+        </nav>
+    </header>
+</div>
+
+Header user:
+
+<link rel="stylesheet" type="text/css" href="./public/css/user.css">
+<script type="text/javascript" src="./public/js/user_ajax.js"></script>
+
+<div class="content">
+    <div class="content-header" title="Añadir usuario">
+        <div class="title">Usuarios</div>
+        <div class="add-user">
+            <a href="#" onclick="cargarFormulario(); return false;"><i class="fa fa-plus-circle"></i></a>
+        </div>
+    </div>
+
+    <div class="content-user" id="content-user">
+        <?php require_once "search_user.php";?>
+    </div>
+</div>
+
+Login:
+
+<div class="contenedor-login">
+    <form action="<?php echo htmlspecialchars($_SERVER['PHP_SELF']);?>" method="post" class="login" onsubmit="return validarLogin()">
+        <h3 class="titulo">Iniciar sesión</h3>
+        <div>
+            <i class="fa fa-user-circle"></i><input type="text" name="usuario" placeholder="Usuario" id="usuario">
+        </div>
+        <br>
+        <div>
+            <input type="password" name="password" placeholder="Contraseña" id="password"><i class="fa fa-unlock-alt"></i>
+        </div>
+        <input type="submit" value="Iniciar sesión">
+
+        <?php if(isset($this->error)): ?>
+            <div class="error" id="error" style="display: inline">
+                <ul>
+                    <i class="fa fa-exclamation-triangle"></i> <?php echo $this->error; ?>
+                </ul>
+            </div>
+        <?php endif; ?>
+        <?php if(isset($this->error) || !$this->mostrar): ?>
+            <div class="error" id="error" style="display: none"></div>
+        <?php endif; ?>
+    </form>
+</div>
+
+Menu panel:
+
+<script type="text/javascript" src="./public/js/user_ajax.js"></script>
+
+<div class="contenedor-menu">
+    <div class="contenedor-boton-menu">
+        <i class="boton-menu fa fa-bars"></i>
+    </div>
+
+    <ul class="menu">
+        <li><a href="#"><i class="icono izquierda fa fa-user-circle-o"></i>Gestión de usuarios<i class="icono derecha fa fa-chevron-down"></i></a>
+            <ul>
+                <li><a href="#" onclick="realizarProceso(); return false;"><i class="fa fa-chevron-right"></i> Usuarios</a></li>
+                <li><a href="#"><i class="fa fa-chevron-right"></i> Permisos</a></li>
+            </ul>
+        </li>
+        <li><a href="#"><i class="icono izquierda fa fa-id-card-o"></i>Gestión de proveedores<i class="icono derecha fa fa-chevron-down"></i></a>
+            <ul>
+                <li><a href="#">Crear proveedor</a></li>
+                <li><a href="#">Listar proveedor</a></li>
+                <li><a href="#">Actualizar proveedor</a></li>
+                <li><a href="#">Eliminar proveedor</a></li>
+                <li><a href="#">Reportes</a></li>
+            </ul>
+        </li>
+        <li><a href="#"><i class="icono izquierda fa fa-newspaper-o"></i>Gestión de cotizaciones<i class="icono derecha fa fa-chevron-down"></i></a>
+            <ul>
+                <li><a href="#">Crear cotización</a></li>
+                <li><a href="#">Listar cotización</a></li>
+                <li><a href="#">Actualizar cotización</a></li>
+                <li><a href="#">Eliminar cotización</a></li>
+                <li><a href="#">Reportes</a></li>
+            </ul>
+        </li>
+        <li><a href="#"><i class="icono izquierda fa fa-shopping-cart"></i>Gestión de compras<i class="icono derecha fa fa-chevron-down"></i></a>
+            <ul>
+                <li><a href="#">Crear compra</a></li>
+                <li><a href="#">Listar compra</a></li>
+                <li><a href="#">Actualizar compra</a></li>
+                <li><a href="#">Eliminar compra</a></li>
+                <li><a href="#">Reportes</a></li>
+            </ul>
+        </li>
+
+        <li><a href="#"><i class="icono izquierda fa fa-coffee"></i>Gestión de suminitros<i class="icono derecha fa fa-chevron-down"></i></a>
+            <ul>
+                <li><a href="#">Crear suminitro</a></li>
+                <li><a href="#">Listar suminitro</a></li>
+                <li><a href="#">Actualizar suminitro</a></li>
+                <li><a href="#">Eliminar suminitro</a></li>
+                <li><a href="#">Reportes</a></li>
+            </ul>
+        </li>
+        <li><a href="#"><i class="icono izquierda fa fa-retweet"></i>Gestión de entregas<i class="icono derecha fa fa-chevron-down"></i></a>
+            <ul>
+                <li><a href="#">Crear entrega</a></li>
+                <li><a href="#">Listar entrega</a></li>
+                <li><a href="#">Actualizar entrega</a></li>
+                <li><a href="#">Eliminar entrega</a></li>
+                <li><a href="#">Reportes</a></li>
+            </ul>
+        </li>
+    </ul>
+</div>
+
+Search user:
+
+<link rel="stylesheet" type="text/css" href="./public/css/bootstrap.min.css"/>
+<link rel="stylesheet" type="text/css" href="./public/DataTables/datatables.min.css"/>
+    
+<script type="text/javascript" src="./public/DataTables/datatables.min.js"></script>
+
+    <div class="content-table">
+        <table id="grid" class="table table-striped table-bordered">
+            <thead>
+                <tr>
+                    <th>Nombre</th>
+                    <th>Apellidos</th>
+                    <th>Correo</th>
+                    <th>Usuario</th>
+                    <th>Contraseña</th>
+                    <th>Fecha</th>
+                    <th>Estado</th>
+                    <th>Perfil</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                <?php
+                require_once "../../controller/user/user_controller.php";
+                $controller = new user_controller();
+                $query = $controller->getUser();
+
+                while($row = $query->fetch(PDO::FETCH_OBJ)) {
+                    echo "<tr><td>".$row->nombre."</td><td>".$row->apellidos.
+                        "</td><td>".$row->correo."</td><td>".$row->usuario.
+                        "</td><td>".$row->contrasena."</td><td>".$row->fecha_registro.
+                        "</td><td>".$row->estado."</td><td>".$row->perfil.
+                        "</td></tr>";
+                }
+                ?>
+            </tbody>
+
+            <tfoot>
+                <tr>
+                    <th>Nombre</th>
+                    <th>Apellidos</th>
+                    <th>Correo</th>
+                    <th>Usuario</th>
+                    <th>Contraseña</th>
+                    <th>Fecha</th>
+                    <th>Estado</th>
+                    <th>Perfil</th>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+<!--</div>-->
+
+<script type="text/javascript" src="./public/js/user_datatable.js"></script>
+
+Controlador:
+
+Login:
+
+<?php
+
+	require './model/login/login_model.php';
+
+	class login_controller {
+		public $model;
+		public $error;
+		public $usuario;
+		public $password;
+		public $mostrar;
+
+		public function __construct() {
+			$this->model = new login_model();
+
+			$sesion = $this->model->validarSesion();
+			$sesion?header('Location: panel'):'';
+        }
+
+		public function validarCampos() {
+			if($_SERVER['REQUEST_METHOD'] == 'POST') {
+				$this->usuario = filter_var(strtolower($_POST['usuario']), FILTER_SANITIZE_STRING);
+				$this->password = $_POST['password'];
+
+				if(empty($this->usuario) || empty($this->password)) {
+					$this->error .= 'Por favor complete todos los campos.';
+					$this->vista();
+				}else {
+					$this->consultar();
+				}
+			}else {
+				$this->vista();
+			}
+		}
+
+		public function consultar() {
+			$resultado = $this->model->consultar($this->usuario, $this->password);
+
+			if($resultado) {
+				header("Location: panel");
+			}else {
+				$this->error .= 'Usuario y/o contraseña incorrectos.';
+				$this->vista();
+			}
+		}
+
+		public function vista() {
+			require './view/login/login_view.php';
+		}
+    }
+
+?>
+
+Panel:
+
+<?php
+
+	require './model/panel/panel_model.php';
+
+	class panel_controller {
+
+		public $model;
+
+		public function __construct() {
+			$this->model = new panel_model();
+
+			$sesion = $this->model->validarSesion();
+			$sesion?header('Location: login'):'';
+
+			$this->cerrarSesion();
+		}
+
+		public function vista() {
+			require './view/panel/panel_view.php';
+		}
+
+		public function cerrarSesion() {
+			if($_GET['accion'] == 'cerrar') {
+				session_destroy();
+				header('Location: login');
+			}
+		}
+	}
+?>
+
+User
+
+<?php
+	
+	require_once "../../model/user/user_model.php";
+    require_once "../../view/modules/search_user.php";
+	
+    class user_controller {
+
+		private $model;
+
+		public function __construct() {
+			$this->model = new user_model();
+		}
+
+		public function getUser() {
+            return $this->model->getData();
+		}
+	}
+?>
+
+Javascript:
+
+Menu:
+
+//Agregamos una funcion cuando el documento este disponible
+$(document).ready(function() {
+	//Seleccionamos solo los elementos 'li' del menu que tengan un elemento 'ul' y añadimos una funcion 'click'
+	$('.menu li:has(ul)').click(function(e) {
+		e.preventDefault();
+
+		//Comprobamos si los hermanos del elemento clickeado tienen el icono con flecha arriba
+		if($(this).siblings('li').children('a').children('.fa-chevron-up')) {
+			//Cambiamos el icono de los hermanos del elemento clickeado que tengan la flecha arriba por el icono flecha abajo
+			$(this).siblings('li').children('a').children('.fa-chevron-up').removeClass('icono derecha fa fa-chevron-up').addClass('icono derecha fa fa-chevron-down');
+		}
+		//Comprobamos si el elemento clickeado tiene agregada la clase 'activado'
+		if($(this).hasClass('activado')) {
+			//Removemos la clase 'activado'
+			//$(this).removeClass('activado');
+			//Ocultamos el submenu 'ul'
+			//$(this).children('ul').slideUp();
+			//Cambiamos el icono del elemento 'i'
+			//$(this).find('.fa-chevron-up').removeClass('icono derecha fa fa-chevron-up').addClass('icono derecha fa fa-chevron-down');
+		}else {
+			//Ocultamos todos los submenu
+			$('.menu li ul').slideUp();
+			//Removemos la clase 'activado' de todos los elementos 'li'
+			$('.menu li').removeClass('activado');
+			//Agregamos la clase 'activado' al elemento que haya sido clickeado
+			$(this).addClass('activado');
+			//Mostramos el submenu 'ul'
+			$(this).children('ul').slideDown();
+			//Cambiamos el icono del elemento 'i'
+			$(this).find('.fa-chevron-down').removeClass('icono derecha fa fa-chevron-down').addClass('icono derecha fa fa-chevron-up');
+		}
+	});
+
+	//Agregamos una funcion 'click' al boton '.boton-menu'
+	$('.boton-menu').click(function() {
+		//Mostramos u ocultamos el contenido del menu
+		$('.contenedor-menu-principal .contenedor-menu .menu').slideToggle();
+	});
+
+	//Agregamos una funcion cuando el tamaño de la pantalla cambie
+	$(window).resize(function() {
+		//Comprobamos si el ancho de la pantalla es mayor a 550 pixeles
+		if($(document).width() > 550) {
+			//Mostramos el menu
+			$('.contenedor-menu-principal .contenedor-menu .menu').css({'display':'flex'});
+		}else {
+			//Ocultamos el menu
+			$('.contenedor-menu-principal .contenedor-menu .menu').css({'display':'none'});
+			//Ocultamos todos los submenu
+			$('.menu li ul').slideUp();
+			//Removemos la clase 'activado' de todos los elementos 'li'
+			$('.menu li').removeClass('activado');
+		}
+	});
+});
+
+User ajax:
+
+function realizarProceso() {
+    $.ajax( {
+        data: '',
+        url: './view/modules/header_user.php',
+        type: 'post',
+
+        success: function(response) {
+            $('#contenido').html(response);
+        }
+    });
+}
+
+function cargarFormulario() {
+    $.ajax({
+        data: '',
+        url: './view/modules/add_user.php',
+        type: 'post',
+
+        success: function(response) {
+            $('#content-user').html(response);
+        }
+    });
+}
+
+User datatable:
+
+$(document).ready(function () {
+    $('#grid').DataTable({
+        "language": {
+            "emptyTable": "No existen registros",
+            "lengthMenu": "Mostrar _MENU_ registros",
+            "search": "Buscar:",
+            "zeroRecords": "No se encontraron registros",
+            "infoEmpty": "No hay registros para mostrar",
+            "info": "Mostrando del _START_ al _END_, de un total de _TOTAL_ registros",
+            "infoFiltered": "(Filtro total de _MAX_ registros)",
+            "loadingRecords": "Cargando...",
+            "processing": "Procesando...",
+
+            "paginate": {
+                "first": "Primeros",
+                "last": "Ultimos",
+                "next": "Siguiente",
+                "previous": "Anterior"
+            }
+        }
+    });
+});
+
+Validar login:
+
+function validarLogin() {
+    var usuario = document.querySelector('#usuario').value;//Recibe el valor del id especificado
+    var password = document.querySelector('#password').value;//Recibe el valor del id especificado
+
+    /*if(usuario != '') {
+        var caracteres = usuario.length;
+
+        if(caracteres > 9) {
+            //Se muestra un mensaje en la etiqueta html donde se quiere mostrar.
+            document.querySelector("div[class='error']").innerHTML = '<ul><i class="fa fa-exclamation-triangle"></i> Ha excedido la cantidad de caracteres permitidos.</ul>';
+            return false;//No envia el formulario
+        }
+    }*/
+    if(usuario == '' || password == '') {
+        //Se muestra un mensaje en la etiqueta html donde se quiere mostrar.
+        document.getElementById('error').style.display = 'inline';
+        document.querySelector("div[class='error']").innerHTML = '<ul><i class="fa fa-exclamation-triangle"></i> Por favor complete todos los campos.</ul>';
+        return false;//No envia el formulario
+    }else {
+        var expresiones = /^[a-zA-Z0-9]*$/;//establece el tipo de caracteres que debe contener la variable
+
+        if(!expresiones.test(usuario)) {//comprueba que el contenido de la variable usuario tiene caracteres diferentes a la variable 'expresion'.
+            //Se muestra un mensaje en la etiqueta html donde se quiere mostrar.
+            document.querySelector("div[class='error']").innerHTML = '<ul><i class="fa fa-exclamation-triangle"></i> No se admiten caracteres especiales.</ul>';
+            return false;//No envia el formulario
+        }
+    }
+
+    return true;//Envia el formulario
+}
+
+Estilos css:
+
+Login:
+
+* {
+	margin: 0;
+	padding: 0;
+	box-sizing: border-box;
+	font-family: sans-serif;
+}
+
+html, body {
+	width: 100%;
+	height: 100%;
+	background: #E6E6E6;
+}
+
+.contenedor-body {
+	width: 100%;
+	height: 100%;
+
+	display: flex;
+	flex-flow: row wrap;
+	align-content: space-between;
+}
+
+/**************************HEADER**************************/
+
+.contenedor-header {
+	width: 100%;
+}
+
+.contenedor-header header .nav-bar {
+	width: 100%;
+	height: 40px;
+	min-width: 250px;
+	background: #373636;
+
+	display: flex;
+	flex-flow: row nowrap;
+	align-items: center;
+}
+
+.contenedor-header header .nav-bar .titulo-app {
+	margin-left: 15px;
+	min-width: 170px;
+
+	/*FLEXBOX*/
+	display: flex;
+	flex-flow: row nowrap;
+	align-items: center;
+}
+
+.contenedor-header header .nav-bar .titulo-app label {
+	color: #fff;
+	font-weight: bold;
+	font-size: 14px;
+	margin-bottom: 0;
+}
+
+.contenedor-header header .nav-bar .titulo-app i {
+	color: #fff;
+	margin-right: 5px;
+	font-size: 14px;
+}
+
+/**************************FOOTER**************************/
+
+.contenedor-footer {
+	width: 100%;
+	height: 40px;
+
+	display: flex;
+	flex-flow: row wrap;
+}
+
+.contenedor-footer footer {
+	background: #373636;
+
+	flex-basis: 100%;
+
+	display: flex;
+	flex-flow: row wrap;
+	justify-content: center;
+	align-items: center;
+}
+
+.contenedor-footer footer nav label {
+	color: #fff;
+	font-size: 12px;
+	font-family: sans-serif;
+}
+
+/**************************FORMULARIO LOGIN**************************/
+
+.contenedor-login {
+	width: 100%;
+	height: 400px;
+
+	display: flex;
+	flex-flow: row wrap;
+	justify-content: center;
+}
+
+.contenedor-login .login {
+	width: 350px;
+
+	display: flex;
+	flex-flow: column nowrap;
+	justify-content: center;
+	align-items: center;
+}
+
+.contenedor-login .login .titulo {
+	margin: 20px;
+	text-align: center;
+	font-family: sans-serif;
+	font-size: 20px;
+}
+
+.contenedor-login .login div {
+	background: #373636;
+	width: 80%;
+	height: 40px;
+	border-radius: 2px;
+
+	display: flex;
+	overflow: hidden;
+	justify-content: space-between;
+	align-items: center;
+}
+
+.contenedor-login .login div i {
+	margin: auto;
+	color: #fff;
+	font-size: 14px;
+}
+
+.contenedor-login .login div input[type="text"], div input[type="password"] {
+	margin: 10px 0;
+	padding: 12px;
+	font-size: 14px;
+	border: 1px solid #C2C2C2;
+	width: 85%;
+	height: 50px;
+}
+
+.contenedor-login .login div input[type="text"]::placeholder, div input[type="password"]::placeholder {
+	color: #C2C2C2;
+	font-size: 12px;
+}
+
+.contenedor-login .login input[type="submit"] {
+	background: #373636;
+	width: 80%;
+	color: #fff;
+	border: none;
+	font-size: 13px;
+	margin: 15px 0;
+	border-radius: 2px;
+	height: 40px;
+}
+
+.contenedor-login .login input[type="submit"]:hover {
+	cursor: pointer;
+	background: #262626;
+}
+
+.contenedor-login .login .error {
+	height: 25px;
+	background: #FFC6C6;
+	border: 1px rgb(255, 135, 135) solid;
+	padding: 4px;
+	color: 	#FE4141;
+	font-family: sans-serif;
+	font-size: 13px;
+}
+
+.contenedor-login .login .error .fa-exclamation-triangle {
+	margin-left: 2px;
+	color: #FE4141;
+	font-size: 13px;
+}
+
+Panel:
+
+* {
+	margin: 0;
+	padding: 0;
+	box-sizing: border-box;
+	font-family: sans-serif;
+	font-size: 14px;
+}
+
+html, body {
+	width: 100%;
+	height: 100%;
+}
+
+.contenedor-body {
+	width: 100%;
+	height: 100%;
+
+	/*FLEXBOX*/
+	display: flex;
+	flex-flow: column nowrap;
+}
+
+/**************************HEADER**************************/
+
+header .nav-bar {
+     width: 100%;
+     height: 40px;
+     min-width: 250px;
+     background: #373636;
+
+     /*FLEXBOX*/
+     display: flex;
+     flex-flow: row nowrap;
+     justify-content: space-between;
+	 align-items: center;
+}
+
+header .nav-bar .titulo-app {
+     margin-left: 15px;
+     min-width: 170px;
+
+     /*FLEXBOX*/
+     display: flex;
+     flex-flow: row nowrap;
+     align-items: center;
+}
+
+header .nav-bar .titulo-app label {
+	color: #fff;
+	font-weight: bold;
+	margin-bottom: 0;
+}
+
+header .nav-bar .titulo-app i {
+	color: #fff;
+	margin-right: 5px;
+}
+
+/*LOGOUT DESKTOP*/
+
+.logout .logout-desktop {
+	width: 115px;
+	height: 30px;
+	margin-right: 10px;
+	border-radius: 3px;
+	border: 1px solid #fff;
+	cursor: pointer;
+
+
+	/*FLEXBOX*/
+	display: flex;
+	flex-flow: row nowrap;
+	justify-content: center;
+	align-items: center;
+}
+
+.logout .logout-desktop:hover {
+     background: #262626;
+}
+
+.logout .logout-desktop a, .logout .logout-desktop i {
+	text-decoration: none;
+	font-weight: normal;
+	color: #fff;
+	font-size: 13px;
+}
+
+.logout .logout-desktop i {
+	margin-right: 5px;
+}
+
+/**LOGOUT MOVIL*/
+
+.logout .logout-movil {
+	 width: 30px;
+	 height: 30px;
+	 margin-right: 10px;
+	 border-radius: 3px;
+	 border: 1px solid #fff;
+	 cursor: pointer;
+
+     /*FLEXBOX*/
+	 display: none;
+     flex-flow: row nowrap;
+     justify-content: center;
+     align-items: center;
+}
+
+.logout .logout-movil:hover {
+     background: #262626;
+}
+
+.logout .logout-movil a i {
+ 	 color: #fff;
+}
+
+/**************************BODY**************************/
+.contenedor-body {
+	width: 100%;
+	height: 100%;
+
+	display: flex;
+}
+
+.contenedor-menu-principal {
+	overflow: auto;
+
+	/*FLEXBOX*/
+	display: flex;
+	flex-flow: row nowrap;
+	flex-basis: 100%;
+}
+
+.contenedor-menu {
+	min-width: 300px;
+	width: 20%;
+	line-height: 18px;
+	border-right: 1px solid #B5B5B5;
+
+
+	/*FLEXBOX*/
+	display: flex;
+	flex-flow: column nowrap;
+}
+
+/*BARRA MENU*/
+
+.contenedor-menu .contenedor-boton-menu {
+	width: 100%;
+	height: 40px;
+	min-height: 40px;
+	background: #026ED9;
+	position: fixed;
+
+	/*FLEXBOX*/
+	display: none;
+	flex-flow: row nowrap;
+	justify-content: flex-end;
+	align-items: center;
+}
+
+.contenedor-menu .contenedor-boton-menu .boton-menu {
+	color: #fff;
+	padding-right: 20px;
+}
+
+/*MENU*/
+
+.contenedor-menu .menu {
+	//margin-top: 40px;
+	width: 100%;
+	height: 100%;
+	background: #fff;
+
+	display: flex;
+	flex-flow: column nowrap;
+}
+
+.contenedor-menu ul {
+	list-style: none;
+}
+
+.contenedor-menu .menu li a {
+	color: #494949;
+	display: block;
+	padding: 15px 20px;
+}
+
+.contenedor-menu .menu li a:hover {
+	background: #1A95D5;
+	color: #fff;
+}
+
+.contenedor-menu .menu .icono {
+	line-height: 18px;
+}
+
+.contenedor-menu .menu .icono.izquierda {
+	float: left;
+	margin-right: 10px;
+}
+
+.contenedor-menu .menu .icono.derecha {
+	float: right;
+	margin-left: 10px;
+}
+
+.contenedor-menu .menu ul {
+	display: none;
+}
+
+.contenedor-menu .menu a {
+	text-decoration: none;
+	color: #fff;
+}
+
+.contenedor-menu .menu ul li a {
+	background: #373636;
+	color: #E9E9E9;
+}
+
+.contenedor-menu .menu .activado > a {
+	background: #1A95D5;
+	color: #fff;
+}
+
+.contenedor-menu .menu li > ul > li i {
+	font-size: 12px;
+}
+
+/***************CONTENIDO***************/
+
+.contenedor-body .contenedor-contenido {
+     width: 80%;
+     overflow: auto;
+}
+
+/**************************MEDIA QUERY**************************/
+
+@media (max-width: 550px) {
+	.contenedor-header .nav-bar .logout-movil {
+          display: flex;
+     }
+
+     .contenedor-header .nav-bar .logout-desktop {
+          display: none;
+     }
+
+	.contenedor-menu {
+		overflow: auto;
+		margin: 0;
+		width: 100%;
+		position: absolute;
+		top: 40px;
+		z-index: 1000;
+		border-right: 0px solid #B5B5B5;
+
+		height: 400px;
+	}
+
+	.contenedor-menu .contenedor-boton-menu {
+		display: flex;
+	}
+
+	.contenedor-menu .menu {
+		margin-top: 40px;
+		display: none;
+		border-right: none;
+	}
+
+	.contenedor-body .contenedor-contenido {
+		width: 100%;
+	}
+}
+
+/**************************FOOTER**************************/
+
+.contenedor-footer footer {
+	background: #373636;
+	width: 100%;
+	height: 40px;
+
+	/*FLEXBOX*/
+	display: flex;
+	flex-flow: row wrap;
+	justify-content: center;
+	align-items: center;
+	flex-basis: 100%;
+}
+
+.contenedor-footer footer nav label {
+	color: #fff;
+	font-weight: normal;
+	font-size: 12px;
+	margin-bottom: 0;
+}
+
+User:
+
+* {
+	margin: 0;
+	padding: 0;
+	box-sizing: border-box;
+	font-family: sans-serif;
+}
+
+/***********************HEADER***********************/
+.content {
+	margin: 10px;
+}
+
+.content .content-header {
+	width: 100%;
+	min-width: 250px;
+	height: 35px;
+	background: #373636;
+	margin-bottom: 10px;
+
+	/*FLEXBOX*/
+	display: flex;
+	flex-flow: row nowrap;
+	justify-content: space-between;
+	align-items: center;
+}
+
+.content .content-header .title {
+	color: #fff;
+	font-size: 13px;
+	font-weight: bold;
+	padding-left: 10px;
+}
+
+.content .content-header .add-user {
+	width: 26px;
+	height: 26px;
+	color: #fff;
+	font-size: 14px;
+	margin-right: 10px;
+	padding: 2px 6px;
+	border: 1px solid #fff;
+	border-radius: 3px;
+	background: #01B838;
+	cursor: pointer;
+
+	/*FLEXBOX*/
+	display: flex;
+	justify-content: center;
+	align-items: center;
+}
+
+.content .content-header .add-user a {
+	text-decoration: none;
+	color: #fff;
+}
+
+.content .content-header .add-user:hover {
+	background: #01A131;
+}
+
+/***********************TABLA***********************/
+.content .content-table {
+	overflow: auto;
+}
+
+.content table thead, tfoot {
+	background: #373636;
+	color: #fff;
+}
+
+.content table thead tr th, .content table tbody tr td, .content table tfoot tr th {
+	font-weight: normal;
+	font-size: 12px;
+}
+
+/***********************ADD-USER***********************/
+.content-form {
+	width: 100%;
+
+	/*FLEXBOX*/
+	display: flex;
+	flex-flow: row nowrap;
+	justify-content: center;
+}
+
+.content-form form {
+	width: 350px;
+	height: 280px;
+	margin-top: 190px;
+	padding: 20px;
+	border: 1px solid rgba(0, 0, 0, 0.2);
+	border-radius: 2px;
+
+	/*FLEXBOX*/
+	display: flex;
+	flex-flow: row wrap;
+	justify-content: space-between;
+	align-items: center;
+}
+
+.content-form form .input-50 {
+	width: 48%;
+	height: 30px;
+	padding: 5px;
+	font-size: 12px;
+}
+.content-form form .input-100 {
+	width: 100%;
+	height: 30px;
+	padding: 5px;
+	font-size: 12px;
+}
+
+.content-form form .input-100[type="submit"] {
+	height: 35px;
+	background: #005997;
+	border: none;
+	color: #fff;
+	font-weight: bold;
+	border-radius: 2px;
+}
+
+.content-form form .input-100[type="submit"]:hover {
+	cursor: pointer;
+	background: #015189;
+}
+
+.content-form form .input-100[type="submit"]:focus {
+	color: #015189;
+}
+
+/***********************MEDIA-QUERY***********************/
+@media (max-width: 550px) {
+	.content {
+		margin-top: 50px;
+	}
+	.content .content-table {
+		overflow: scroll;
+	}
+}
